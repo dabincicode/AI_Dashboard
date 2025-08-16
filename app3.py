@@ -6,53 +6,23 @@ import plotly.graph_objects as go
 # -------------------------------------------------
 # Palette (사용자 지정)
 # -------------------------------------------------
-PRIMARY = "#D70454"    # 강조
-SECONDARY = "#AA0055"  # 보조 강조
-DARK = "#980046"       # 텍스트/라인(진한 포인트)
-LIGHT = "#F4D1DF"      # 배경/하이라이트
+C1 = "#D43D7A"  # 메인
+C2 = "#C90452"  # 서브
+C3 = "#DC6493"  # 보조1
+C4 = "#E37CA4"  # 보조2
+C5 = "#F2C7D7"  # 포인트/라이트
 
 # -------------------------------------------------
-# Page config & CSS (palette applied)
+# Page config
 # -------------------------------------------------
 st.set_page_config(page_title="월별 매출 대시보드", layout="wide")
-
-st.markdown(
-    f"""
-    <style>
-      :root {{
-        --primary: {PRIMARY};
-        --secondary: {SECONDARY};
-        --dark: {DARK};
-        --light: {LIGHT};
-      }}
-      html, body, .block-container {{
-        background: var(--light) !important;
-        color: var(--dark) !important;
-      }}
-      h1, h2, h3, h4, h5, h6 {{ color: var(--dark) !important; }}
-      /* KPI metric cards */
-      div[data-testid="stMetric"] {{
-        background: #ffffffdd;
-        border: 2px solid var(--secondary);
-        border-radius: 14px;
-        padding: 12px 14px;
-      }}
-      div[data-testid="stMetric"] span {{ color: var(--dark) !important; }}
-      /* Buttons */
-      .stDownloadButton button {{
-        background: var(--primary) !important; border: 0; color: white !important;
-      }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 st.title("📊 월별 매출 대시보드")
 
 uploaded_file = st.file_uploader("CSV 업로드 (열: 월, 매출액, 전년동월, 증감률)", type=["csv"])
 
 # -------------------------------------------------
-# Sample data (동일 열명)
+# Sample data
 # -------------------------------------------------
 sample_data = pd.DataFrame({
     "월": ["2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12"],
@@ -96,9 +66,7 @@ k4.metric("최소 매출", f"{min_row['매출액']:,.0f} 원", min_row['월'])
 # -------------------------------------------------
 BASE_LAYOUT = dict(
     margin=dict(t=30, r=10, b=40, l=50),
-    paper_bgcolor=LIGHT,
-    plot_bgcolor=LIGHT,
-    font=dict(color=DARK),
+    font=dict(color=C2),
     legend=dict(orientation="h"),
 )
 
@@ -109,12 +77,12 @@ BASE_LAYOUT = dict(
 fig1 = px.line(
     df, x="월", y=["매출액", "전년동월"], markers=True,
     title="월별 매출 추이 (전년 동월 대비)",
-    color_discrete_sequence=[PRIMARY, DARK]
+    color_discrete_sequence=[C1, C2]
 )
 fig1.update_layout(**BASE_LAYOUT)
 
-# Bar: growth rate (continuous color scale using palette)
-custom_scale = [(0.0, DARK), (0.5, LIGHT), (1.0, PRIMARY)]
+# Bar: growth rate
+custom_scale = [(0.0, C2), (0.5, C5), (1.0, C1)]
 fig2 = px.bar(
     df, x="월", y="증감률", title="증감률(%)",
     color="증감률", color_continuous_scale=custom_scale
@@ -127,14 +95,14 @@ df_cum["누적매출"] = df_cum["매출액"].cumsum()
 fig3 = go.Figure(
     go.Scatter(x=df_cum["월"], y=df_cum["누적매출"], mode="lines",
                fill="tozeroy", name="누적 매출",
-               line=dict(color=SECONDARY))
+               line=dict(color=C3))
 )
 fig3.update_layout(title_text="누적 매출 추이", **BASE_LAYOUT)
 
 # Grouped bars: current vs last year
 fig4 = go.Figure()
-fig4.add_bar(x=df["월"], y=df["매출액"], name="매출액", marker_color=PRIMARY)
-fig4.add_bar(x=df["월"], y=df["전년동월"], name="전년동월", marker_color=DARK)
+fig4.add_bar(x=df["월"], y=df["매출액"], name="매출액", marker_color=C1)
+fig4.add_bar(x=df["월"], y=df["전년동월"], name="전년동월", marker_color=C4)
 fig4.update_layout(barmode="group", title_text="전년 동월 대비 비교", **BASE_LAYOUT)
 
 # Render
