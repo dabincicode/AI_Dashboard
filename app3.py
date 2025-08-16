@@ -6,13 +6,13 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 # -------------------------------------------------
-# Palette (사용자 지정) — 전역 배경색 지정하지 않음
+# Palette (가독성 높은 추천 팔레트) — 전역 배경색 지정 안 함
 # -------------------------------------------------
-C1 = "#D43D7A"  # 메인 (양/상향)
-C2 = "#C90452"  # 서브 (음/하향)
-C3 = "#DC6493"  # 보조1 (평활/MA)
-C4 = "#E37CA4"  # 보조2 (보조 라인)
-C5 = "#F2C7D7"  # 포인트(중간톤)
+PRIMARY = "#3366CC"  # 매출(주 색: 블루)
+SECONDARY = "#DC3912"  # 증감률/강조(레드 오렌지)
+ACCENT1 = "#FF9900"  # 보조선/누적(오렌지)
+ACCENT2 = "#109618"  # 증가/이동평균(그린)
+NEUTRAL = "#AAAAAA"  # 연결선/보조
 
 st.set_page_config(page_title="월별 매출 대시보드", layout="wide")
 st.title("📊 월별 매출 대시보드 — 분석 강화")
@@ -84,9 +84,9 @@ col_f1, col_f2, col_f3 = st.columns([1,1,2])
 with col_f1:
     q_sel = st.selectbox("분기", options=["전체", "Q1", "Q2", "Q3", "Q4"], index=0)
 with col_f2:
-    gmin = st.number_input("증감률 최소(%)", value=None, step=0.1, format="%0.1f")
+    gmin = st.number_input("YoY 최소(%)", value=None, step=0.1, format="%0.1f")
 with col_f3:
-    gmax = st.number_input("증감률 최대(%)", value=None, step=0.1, format="%0.1f")
+    gmax = st.number_input("YoY 최대(%)", value=None, step=0.1, format="%0.1f")
 
 fdf = df.copy()
 if q_sel != "전체":
@@ -112,12 +112,12 @@ k4.metric("최대 매출", f"{mx['매출액']:,.0f} 원", mx['월'])
 k5.metric("최소 매출", f"{mn['매출액']:,.0f} 원", mn['월'])
 
 # -------------------------------------------------
-# 1) Combo: 매출(막대) + YoY%(라인) + 3개월MA(라인, 보조)
+# 1) Combo: 매출(막대, 블루) + YoY%(라인, 레드) + 3개월MA(라인, 그린)
 # -------------------------------------------------
 combo = make_subplots(specs=[[{"secondary_y": True}]])
-combo.add_trace(go.Bar(x=fdf["월"], y=fdf["매출액"], name="매출액", marker_color=C1), secondary_y=False)
-combo.add_trace(go.Scatter(x=fdf["월"], y=fdf["YoY(%)"], name="YoY(%)", mode="lines+markers", line=dict(color=C2, width=2)), secondary_y=True)
-combo.add_trace(go.Scatter(x=fdf["월"], y=fdf["3개월MA"], name="3개월 이동평균", mode="lines", line=dict(color=C3, width=3, dash="dot")), secondary_y=False)
+combo.add_trace(go.Bar(x=fdf["월"], y=fdf["매출액"], name="매출액", marker_color=PRIMARY), secondary_y=False)
+combo.add_trace(go.Scatter(x=fdf["월"], y=fdf["YoY(%)"], name="YoY(%)", mode="lines+markers", line=dict(color=SECONDARY, width=2)), secondary_y=True)
+combo.add_trace(go.Scatter(x=fdf["월"], y=fdf["3개월MA"], name="3개월 이동평균", mode="lines", line=dict(color=ACCENT2, width=3, dash="dot")), secondary_y=False)
 combo.update_yaxes(title_text="금액(원)", secondary_y=False)
 combo.update_yaxes(title_text="YoY(%)", secondary_y=True)
 combo.update_layout(title_text="매출 vs YoY% (3개월 이동평균 포함)", legend_orientation="h", margin=dict(t=30, r=10, b=40, l=50))
@@ -125,20 +125,21 @@ combo.update_layout(title_text="매출 vs YoY% (3개월 이동평균 포함)", l
 # -------------------------------------------------
 # 2) MoM Waterfall: 월별 증감 금액 브리지
 # -------------------------------------------------
-# 첫 달을 'absolute', 이후는 'relative'로 표현
 values = [fdf["매출액"].iloc[0]] + fdf["매출액"].diff().iloc[1:].tolist()
 measures = ["absolute"] + ["relative"] * (len(fdf) - 1)
 water = go.Figure(go.Waterfall(
     x=fdf["월"], measure=measures, y=values,
-    increasing=dict(marker_color=C1), decreasing=dict(marker_color=C2), totals=dict(marker_color=C4),
-    connector=dict(line=dict(color=C5))
+    increasing=dict(marker_color=ACCENT2),  # 증가 → 그린
+    decreasing=dict(marker_color=SECONDARY), # 감소 → 레드 오렌지
+    totals=dict(marker_color=PRIMARY),
+    connector=dict(line=dict(color=NEUTRAL))
 ))
 water.update_layout(title_text="월별 MoM 변화 브리지 (Waterfall)", margin=dict(t=30, r=10, b=40, l=50))
 
 # -------------------------------------------------
-# 3) YoY 갭(Δ전년) 편차막대: 전년 대비 차이 강조
+# 3) 전년 대비 편차(Δ전년)
 # -------------------------------------------------
-colors = [C1 if v >= 0 else C2 for v in fdf["Δ전년(원)"]]
+colors = [ACCENT2 if v >= 0 else SECONDARY for v in fdf["Δ전년(원)"]]
 delta_bar = go.Figure(go.Bar(x=fdf["월"], y=fdf["Δ전년(원)"], marker_color=colors, name="Δ전년"))
 delta_bar.update_layout(title_text="전년 대비 차이 (Δ전년)", margin=dict(t=30, r=10, b=40, l=50))
 
@@ -148,8 +149,8 @@ delta_bar.update_layout(title_text="전년 대비 차이 (Δ전년)", margin=dic
 pareto_df = fdf.sort_values("매출액", ascending=False).reset_index(drop=True)
 pareto_df["누적비중(%)"] = pareto_df["매출액"].cumsum() / pareto_df["매출액"].sum() * 100
 pareto = make_subplots(specs=[[{"secondary_y": True}]])
-pareto.add_trace(go.Bar(x=pareto_df["월"], y=pareto_df["매출액"], name="매출액", marker_color=C1), secondary_y=False)
-pareto.add_trace(go.Scatter(x=pareto_df["월"], y=pareto_df["누적비중(%)"], name="누적비중(%)", mode="lines+markers", line=dict(color=C4)), secondary_y=True)
+pareto.add_trace(go.Bar(x=pareto_df["월"], y=pareto_df["매출액"], name="매출액", marker_color=PRIMARY), secondary_y=False)
+pareto.add_trace(go.Scatter(x=pareto_df["월"], y=pareto_df["누적비중(%)"], name="누적비중(%)", mode="lines+markers", line=dict(color=ACCENT1)), secondary_y=True)
 pareto.update_yaxes(title_text="금액(원)", secondary_y=False)
 pareto.update_yaxes(title_text="누적비중(%)", secondary_y=True, range=[0, 100])
 pareto.update_layout(title_text="Pareto 분석: 상위 월의 매출 기여도", legend_orientation="h", margin=dict(t=30, r=10, b=40, l=50))
@@ -171,4 +172,4 @@ with c2:
 st.subheader("④ Pareto: 상위 월 기여도")
 st.plotly_chart(pareto, use_container_width=True)
 
-st.caption("ⓘ 팁: 분기/증감률 필터로 구간을 좁혀보세요. 배경색은 전역으로 지정하지 않았습니다.")
+st.caption("ⓘ 배경색은 전역 지정하지 않았고, 팔레트는 블루/레드·오렌지/그린 기반으로 가독성을 높였습니다.")
