@@ -4,16 +4,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # -------------------------------------------------
-# Palette (사용자 지정)
+# Palette (사용자 지정) — 배경색은 적용하지 않음
 # -------------------------------------------------
 C1 = "#D43D7A"  # 메인
 C2 = "#C90452"  # 서브
 C3 = "#DC6493"  # 보조1
 C4 = "#E37CA4"  # 보조2
-C5 = "#F2C7D7"  # 포인트/라이트
+C5 = "#F2C7D7"  # 포인트(연속 스케일 중간톤)
 
 # -------------------------------------------------
-# Page config
+# Page config (배경 스타일링 금지)
 # -------------------------------------------------
 st.set_page_config(page_title="월별 매출 대시보드", layout="wide")
 
@@ -62,26 +62,27 @@ k3.metric("최대 매출", f"{max_row['매출액']:,.0f} 원", max_row['월'])
 k4.metric("최소 매출", f"{min_row['매출액']:,.0f} 원", min_row['월'])
 
 # -------------------------------------------------
-# Plotly common layout/colors
+# Plotly common layout (배경/종이색 지정하지 않음 → 기본 흰색)
 # -------------------------------------------------
 BASE_LAYOUT = dict(
     margin=dict(t=30, r=10, b=40, l=50),
-    font=dict(color=C2),
+    font=dict(color="#333333"),  # 기본 텍스트만 약간 진하게
     legend=dict(orientation="h"),
 )
 
 # -------------------------------------------------
 # Charts
 # -------------------------------------------------
-# Line: sales vs last-year
+# 1) 월별 매출 추이 (전년 동월 대비)
 fig1 = px.line(
     df, x="월", y=["매출액", "전년동월"], markers=True,
     title="월별 매출 추이 (전년 동월 대비)",
     color_discrete_sequence=[C1, C2]
 )
+fig1.update_traces(line=dict(width=3))
 fig1.update_layout(**BASE_LAYOUT)
 
-# Bar: growth rate
+# 2) 증감률 막대 (연속 컬러 스케일: C2 → C5 → C1)
 custom_scale = [(0.0, C2), (0.5, C5), (1.0, C1)]
 fig2 = px.bar(
     df, x="월", y="증감률", title="증감률(%)",
@@ -89,17 +90,17 @@ fig2 = px.bar(
 )
 fig2.update_layout(**BASE_LAYOUT)
 
-# Area: cumulative sales
+# 3) 누적 매출 추이 (에어리어)
 df_cum = df.copy()
 df_cum["누적매출"] = df_cum["매출액"].cumsum()
 fig3 = go.Figure(
     go.Scatter(x=df_cum["월"], y=df_cum["누적매출"], mode="lines",
                fill="tozeroy", name="누적 매출",
-               line=dict(color=C3))
+               line=dict(color=C3, width=3))
 )
 fig3.update_layout(title_text="누적 매출 추이", **BASE_LAYOUT)
 
-# Grouped bars: current vs last year
+# 4) 전년 대비 그룹 막대
 fig4 = go.Figure()
 fig4.add_bar(x=df["월"], y=df["매출액"], name="매출액", marker_color=C1)
 fig4.add_bar(x=df["월"], y=df["전년동월"], name="전년동월", marker_color=C4)
@@ -114,4 +115,4 @@ with col2:
     st.plotly_chart(fig3, use_container_width=True)
 st.plotly_chart(fig4, use_container_width=True)
 
-st.caption("ⓘ 팁: CSV는 열 이름을 반드시 '월, 매출액, 전년동월, 증감률'로 맞춰 주세요.")
+st.caption("ⓘ 팁: CSV는 열 이름을 반드시 '월, 매출액, 전년동월, 증감률'로 맞춰 주세요. 배경색은 전역으로 지정하지 않았습니다.")
